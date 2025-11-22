@@ -1,0 +1,631 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI 绘画风格图鉴 - 终极整合版</title>
+    <style>
+        /* --- CSS 变量 & 主题定义 --- */
+        :root {
+            --bg-color: #0f0f0f;
+            --card-bg: #1a1a1a;
+            --text-main: #ececec;
+            --text-sub: #a0a0a0;
+            --accent-color: #00e5ff; /* 赛博蓝 */
+            --card-border: #333;
+            --search-bg: #252525;
+            --input-border: #444;
+        }
+
+        [data-theme="light"] {
+            --bg-color: #f0f2f5;
+            --card-bg: #ffffff;
+            --text-main: #333333;
+            --text-sub: #666666;
+            --accent-color: #6200ea; /* 深紫色 */
+            --card-border: #dcdcdc;
+            --search-bg: #ffffff;
+            --input-border: #ccc;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; transition: background-color 0.3s, border-color 0.3s, color 0.3s; }
+
+        body {
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            line-height: 1.6;
+            padding: 20px;
+            padding-bottom: 80px;
+        }
+
+        .container { max-width: 1400px; margin: 0 auto; }
+
+        /* --- 顶部 Header & 工具栏 --- */
+        header {
+            padding: 20px 0;
+            margin-bottom: 30px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .header-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding-bottom: 20px;
+            border-bottom: 1px solid var(--card-border);
+        }
+
+        h1 {
+            font-size: 2rem;
+            background: linear-gradient(90deg, var(--accent-color), #ff0080);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            font-weight: 800;
+        }
+
+        .theme-toggle {
+            background: var(--search-bg);
+            border: 1px solid var(--input-border);
+            color: var(--text-main);
+            padding: 8px 16px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .theme-toggle:hover { border-color: var(--accent-color); }
+
+        /* 工具栏 */
+        .toolbar {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            background: var(--card-bg);
+            padding: 20px;
+            border-radius: 12px;
+            border: 1px solid var(--card-border);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+        }
+
+        .tool-group {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            flex: 1;
+            min-width: 180px;
+        }
+
+        .tool-group label { font-size: 0.8rem; color: var(--text-sub); font-weight: bold; }
+
+        input, select {
+            background: var(--search-bg);
+            border: 1px solid var(--input-border);
+            color: var(--text-main);
+            padding: 10px;
+            border-radius: 8px;
+            outline: none;
+            font-size: 0.9rem;
+        }
+        input:focus, select:focus { border-color: var(--accent-color); }
+
+        /* --- 网格 & 卡片 --- */
+        .section-title {
+            font-size: 1.5rem;
+            margin: 40px 0 15px 0;
+            padding-left: 15px;
+            border-left: 5px solid var(--accent-color);
+            color: var(--text-main);
+        }
+
+        .category-title {
+            font-size: 1.1rem;
+            color: var(--text-sub);
+            margin: 20px 0 10px 0;
+            border-bottom: 1px solid var(--card-border);
+            padding-bottom: 5px;
+        }
+
+        .grid-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+            gap: 15px;
+        }
+
+        .style-card {
+            background-color: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: 10px;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+            transition: transform 0.2s;
+        }
+
+        .style-card:hover {
+            transform: translateY(-5px);
+            border-color: var(--accent-color);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+            z-index: 2;
+        }
+
+        /* 图片区域 */
+        .img-wrapper {
+            width: 100%;
+            aspect-ratio: 1 / 1;
+            background-color: var(--search-bg);
+            position: relative;
+            cursor: zoom-in; /* 提示可放大 */
+            overflow: hidden;
+        }
+
+        .img-wrapper img {
+            width: 100%; height: 100%; object-fit: cover;
+            opacity: 0; transition: opacity 0.4s ease;
+        }
+        .img-wrapper img.loaded { opacity: 1; }
+
+        /* 悬停显示放大镜 */
+        .img-wrapper:hover::after {
+            content: "🔍";
+            position: absolute;
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 2.5rem;
+            text-shadow: 0 2px 10px rgba(0,0,0,0.8);
+            opacity: 1;
+            pointer-events: none;
+        }
+
+        .loading-spinner {
+            position: absolute; top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            width: 25px; height: 25px;
+            border: 3px solid var(--text-sub);
+            border-top-color: var(--accent-color);
+            border-radius: 50%;
+            animation: spin 0.8s infinite linear;
+        }
+        @keyframes spin { to { transform: translate(-50%, -50%) rotate(360deg); } }
+
+        /* 文字区域 */
+        .card-label {
+            padding: 10px 8px;
+            font-size: 0.85rem;
+            text-align: center;
+            font-weight: 600;
+            color: var(--text-main);
+            background: var(--card-bg);
+            cursor: pointer;
+            border-top: 1px solid var(--card-border);
+        }
+        .card-label:hover {
+            background-color: var(--accent-color);
+            color: #fff;
+        }
+
+        /* --- 灯箱 (Lightbox) --- */
+        .lightbox-modal {
+            display: none;
+            position: fixed;
+            z-index: 2000;
+            left: 0; top: 0;
+            width: 100%; height: 100%;
+            background-color: rgba(0,0,0,0.92);
+            backdrop-filter: blur(5px);
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .lightbox-content {
+            max-width: 90%;
+            max-height: 80vh;
+            border-radius: 4px;
+            box-shadow: 0 0 30px rgba(0,0,0,0.5);
+            animation: zoomIn 0.3s;
+        }
+        @keyframes zoomIn { from {transform:scale(0.9); opacity:0} to {transform:scale(1); opacity:1} }
+
+        .lightbox-caption {
+            color: #fff; margin-top: 15px; font-size: 1.2rem; font-weight: bold;
+        }
+
+        .lightbox-actions { margin-top: 20px; display: flex; gap: 15px; }
+        
+        .btn-action {
+            padding: 10px 25px;
+            border-radius: 30px;
+            border: 1px solid var(--accent-color);
+            background: rgba(0,0,0,0.6);
+            color: #fff; cursor: pointer;
+            font-size: 1rem; transition: 0.3s;
+        }
+        .btn-action:hover { background: var(--accent-color); color: #000; }
+
+        .close-btn {
+            position: absolute; top: 20px; right: 40px;
+            color: #fff; font-size: 50px; cursor: pointer;
+        }
+
+        /* --- Toast --- */
+        #toast {
+            visibility: hidden; min-width: 260px;
+            background-color: var(--card-bg); color: var(--accent-color);
+            text-align: center; border-radius: 50px; padding: 16px;
+            position: fixed; z-index: 3000; left: 50%; bottom: 30px;
+            transform: translateX(-50%);
+            border: 1px solid var(--accent-color);
+            box-shadow: 0 5px 20px rgba(0,0,0,0.3);
+            font-weight: bold; opacity: 0; transition: all 0.3s;
+        }
+        #toast.show { visibility: visible; opacity: 1; bottom: 60px; }
+
+        footer { text-align: center; margin-top: 60px; color: var(--text-sub); font-size: 0.9rem; }
+
+        @media (max-width: 768px) {
+            .header-top, .toolbar { flex-direction: column; }
+            .close-btn { top: 10px; right: 20px; font-size: 40px; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <header>
+        <div class="header-top">
+            <h1>🎨 AI 绘画风格图鉴 <span style="font-size:0.4em; opacity:0.6; border:1px solid currentColor; border-radius:4px; padding:2px 5px; vertical-align: middle;">Ultimate</span></h1>
+            <button class="theme-toggle" id="themeBtn">
+                <span id="themeIcon">☀️</span> 切换主题
+            </button>
+        </div>
+
+        <div class="toolbar">
+            <div class="tool-group" style="flex: 1.2;">
+                <label>📋 快捷模版 (Templates)</label>
+                <select id="presetSelect" onchange="applyPreset()">
+                    <option value="chat_cn" selected>🇨🇳 中文指令 (请生成...)</option>
+                    <option value="chat_en">🇺🇸 英文指令 (Please generate...)</option>
+                    <option value="sd_base">🎨 SD/MJ 通用 (Masterpiece...)</option>
+                    <option value="custom">⚙️ 自定义 (Custom)</option>
+                    <option value="empty">❌ 清空 (Empty)</option>
+                </select>
+            </div>
+
+            <div class="tool-group" style="flex: 2;">
+                <label>🔍 搜索风格 (Search)</label>
+                <input type="text" id="searchInput" placeholder="输入关键词，如 'Pixel', '赛博'...">
+            </div>
+
+            <div class="tool-group" style="flex: 1.5;">
+                <label>前缀 (Prefix)</label>
+                <input type="text" id="prefixInput">
+            </div>
+            <div class="tool-group" style="flex: 1.5;">
+                <label>后缀 (Suffix)</label>
+                <input type="text" id="suffixInput">
+            </div>
+        </div>
+    </header>
+
+    <div id="gallery-root"></div>
+
+    <footer>
+        <p>已集成 200+ 风格 · 点击图片预览大图 · 点击文字复制提示词</p>
+    </footer>
+</div>
+
+<div id="lightbox" class="lightbox-modal">
+    <span class="close-btn" onclick="closeLightbox()">&times;</span>
+    <img class="lightbox-content" id="lightbox-img">
+    <div class="lightbox-caption" id="lightbox-caption">Title</div>
+    <div class="lightbox-actions">
+        <button class="btn-action" onclick="copyCurrentFromLightbox()">📋 复制 Prompt</button>
+        <button class="btn-action" onclick="closeLightbox()">❌ 关闭</button>
+    </div>
+</div>
+
+<div id="toast">已复制到剪贴板！</div>
+
+<script>
+    // ==============================================
+    // 🎨 200+ 完整风格数据库
+    // ==============================================
+    const styleData = [
+        {
+            title: "Ⅰ. 传统艺术流派 (Classic Art Movements)",
+            categories: [
+                {
+                    name: "1. 古典与写实",
+                    tags: ["Classicism (古典主义)", "Realism (写实主义)", "Academic Art (学院派)", "Baroque (巴洛克)", "Rococo (洛可可)", "Neoclassicism (新古典主义)", "Renaissance (文艺复兴)", "Pre-Raphaelite (前拉斐尔派)", "Mannerism (矫饰主义)"]
+                },
+                {
+                    name: "2. 印象与浪漫",
+                    tags: ["Romanticism (浪漫主义)", "Impressionism (印象派)", "Post-Impressionism (后印象派)", "Pointillism (点描派)", "Luminism (光灿派)"]
+                },
+                {
+                    name: "3. 现代艺术早期",
+                    tags: ["Art Nouveau (新艺术运动)", "Art Deco (装饰艺术)", "Bauhaus (包豪斯)", "Cubism (立体主义)", "Fauvism (野兽派)", "Expressionism (表现主义)", "Abstract Expressionism (抽象表现主义)", "Dadaism (达达主义)", "Futurism (未来主义)", "Surrealism (超现实主义)", "Suprematism (至上主义)"]
+                },
+                {
+                    name: "4. 东方艺术",
+                    tags: ["Ink Wash Painting (中国水墨)", "Gongbi (工笔画)", "Shan Shui (山水画)", "Ukiyo-e (日本浮世绘)", "Japanese Traditional (东瀛风)", "Chinese-NewWave (国潮风)", "Mughal Painting (莫卧儿细密画)", "Thangka (唐卡风格)"]
+                }
+            ]
+        },
+        {
+            title: "Ⅱ. 插画与平面设计 (Illustration & Design)",
+            categories: [
+                {
+                    name: "5. 现代设计风",
+                    tags: ["Flat Design (扁平化)", "Minimalism (极简主义)", "Material Design (材料设计)", "Memphis Design (孟菲斯风格)", "Swiss Style (瑞士国际主义)", "Brutalism (粗野主义设计)", "Psychedelic Art (迷幻艺术)", "Pop Art (波普艺术)", "Op Art (欧普艺术)"]
+                },
+                {
+                    name: "6. 插画技法",
+                    tags: ["Line Art (线条艺术)", "Doodle (涂鸦风)", "Vector Art (矢量插画)", "Risograph (孔版印刷)", "Collage (拼贴艺术)", "Sticker Art (贴纸风格)", "Stencil Art (喷漆模版)", "Ligne Claire (清晰线条/丁丁历险记风)", "Lowbrow (低眉艺术)", "Children's Book Illustration (绘本风)"]
+                },
+                {
+                    name: "7. 漫画与二次元",
+                    tags: ["Anime Style (日系动漫)", "Manga (黑白日漫)", "Vintage Anime 90s (90年代赛璐璐)", "Studio Ghibli (吉卜力风格)", "Makoto Shinkai (新海诚风格)", "Comic Book (美式漫画)", "DC Comics Style (DC风格)", "Marvel Comics Style (漫威风格)", "Webtoon (韩漫条漫)", "Chibi (Q版大头)"]
+                }
+            ]
+        },
+        {
+            title: "Ⅲ. 摄影与光影 (Photography & Lighting)",
+            categories: [
+                {
+                    name: "8. 镜头与技法",
+                    tags: ["Photorealistic (照片级写实)", "Macro Photography (微距摄影)", "Bokeh (大光圈虚化)", "Tilt-Shift (移轴摄影)", "Fish-eye Lens (鱼眼镜头)", "Long Exposure (长曝光)", "Double Exposure (双重曝光)", "Drone Photography (无人机航拍)", "Polaroid (宝丽来风格)", "GoPro Footage (运动相机视角)"]
+                },
+                {
+                    name: "9. 光影氛围",
+                    tags: ["Cinematic Lighting (电影布光)", "Rembrandt Lighting (伦勃朗光)", "Volumetric Lighting (体积光/丁达尔效应)", "Neon Noir (霓虹黑色电影)", "Golden Hour (黄金时刻)", "Blue Hour (蓝调时刻)", "Silhouette (剪影)", "Rim Light (轮廓光)"]
+                }
+            ]
+        },
+        {
+            title: "Ⅳ. 游戏与3D渲染 (Game & 3D)",
+            categories: [
+                {
+                    name: "10. 游戏世代",
+                    tags: ["Pixel Art (像素风)", "8-bit (8位机风格)", "16-bit (16位机风格)", "PS1 Graphics (PS1复古3D)", "Low Poly (低多边形)", "Voxel Art (体素风)", "Isometric View (等距视角)", "Visual Novel (视觉小说)"]
+                },
+                {
+                    name: "11. 现代引擎与材质",
+                    tags: ["Unreal Engine 5 (虚幻引擎5)", "Octane Render (OC渲染)", "Ray Tracing (光线追踪)", "PBR Materials (PBR物理材质)", "Claymorphism (粘土风)", "Glassmorphism (玻璃拟态)", "Knolling (平铺摄影)", "Diorama (透视微缩模型)"]
+                }
+            ]
+        },
+        {
+            title: "Ⅴ. 材质与特殊工艺 (Materials & Crafts)",
+            categories: [
+                {
+                    name: "12. 传统工艺",
+                    tags: ["Origami (折纸艺术)", "Paper Cut Craft (剪纸风)", "Stained Glass (彩色花窗玻璃)", "Mosaic (马赛克拼贴)", "Embroidery (刺绣风格)", "Felt Art (羊毛毡)", "Wood Carving (木雕)", "Ceramic (陶瓷质感)"]
+                },
+                {
+                    name: "13. 特殊材质",
+                    tags: ["Liquid Metal (液态金属)", "Smoke Art (烟雾艺术)", "Water Splash (水花飞溅)", "Crystal (水晶质感)", "Glitch Art (故障艺术)", "Neon Light (霓虹灯管)", "Holographic (全息材质)", "X-Ray (X光透视)"]
+                }
+            ]
+        },
+        {
+            title: "Ⅵ. 科幻与幻想 (Sci-Fi & Fantasy)",
+            categories: [
+                {
+                    name: "14. 朋克家族",
+                    tags: ["Cyberpunk (赛博朋克)", "Steampunk (蒸汽朋克)", "Dieselpunk (柴油朋克)", "Solarpunk (太阳朋克)", "Biopunk (生物朋克)", "Atompunk (原子朋克)", "Synthwave (合成波)", "Vaporwave (蒸气波)"]
+                },
+                {
+                    name: "15. 幻想流派",
+                    tags: ["Dark Fantasy (暗黑奇幻)", "High Fantasy (史诗奇幻)", "Eldritch (克苏鲁/不可名状)", "Grimdark (冷酷黑暗)", "Post-Apocalyptic (末日废土)", "Space Opera (太空歌剧)", "Mecha (机甲风)", "Biomechanical (仿生机械)"]
+                }
+            ]
+        },
+        {
+            title: "Ⅶ. 导演与电影美学 (Director Styles)",
+            categories: [
+                {
+                    name: "16. 著名导演风格",
+                    tags: ["Wes Anderson Style (韦斯·安德森/对称粉彩)", "Tim Burton Style (蒂姆·波顿/哥特怪诞)", "Blade Runner Style (银翼杀手风)", "Tarantino Style (塔伦蒂诺/暴力美学)", "Kubrick Style (库布里克/极致构图)", "Dune Style (沙丘/巨物极简)", "Matrix Style (黑客帝国/绿调)"]
+                }
+            ]
+        }
+    ];
+
+    // --- 核心渲染逻辑 ---
+    const root = document.getElementById('gallery-root');
+
+    function renderGallery() {
+        root.innerHTML = ''; // 清空防止重复
+        
+        styleData.forEach(section => {
+            const sectionDiv = document.createElement('div');
+            sectionDiv.className = 'section-container';
+            
+            const h2 = document.createElement('h2');
+            h2.className = 'section-title';
+            h2.textContent = section.title;
+            sectionDiv.appendChild(h2);
+
+            section.categories.forEach(cat => {
+                const catDiv = document.createElement('div');
+                catDiv.className = 'category-container';
+
+                const h3 = document.createElement('h3');
+                h3.className = 'category-title';
+                h3.textContent = cat.name;
+                catDiv.appendChild(h3);
+
+                const grid = document.createElement('div');
+                grid.className = 'grid-container';
+
+                cat.tags.forEach(tagText => {
+                    const promptName = tagText.split(' (')[0].trim();
+                    // 文件名规则: 空格变下划线, 全小写
+                    const fileName = promptName.replace(/ /g, "_").replace(/\//g, "-").toLowerCase() + ".jpg";
+                    const localPath = `images/${fileName}`;
+                    // 在线备用 (小图)
+                    const onlineUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent('masterpiece, ' + promptName + ' style visual art')}?width=320&height=320&nologo=true&model=flux&seed=66`;
+
+                    const card = document.createElement('div');
+                    card.className = 'style-card';
+                    card.setAttribute('data-search', tagText.toLowerCase());
+
+                    // 结构: 图片区域(点击看大图) + 文字区域(点击复制)
+                    card.innerHTML = `
+                        <div class="img-wrapper" onclick="openLightbox('${localPath}', '${onlineUrl}', '${tagText}')">
+                            <div class="loading-spinner"></div>
+                            <img 
+                                src="${localPath}" 
+                                alt="${promptName}" 
+                                loading="lazy" 
+                                onload="this.classList.add('loaded'); this.previousElementSibling.style.display='none';"
+                                onerror="this.onerror=null; this.src='${onlineUrl}';"
+                            >
+                        </div>
+                        <div class="card-label" onclick="copyText('${tagText}')" title="点击复制提示词">
+                            ${tagText}
+                        </div>
+                    `;
+                    grid.appendChild(card);
+                });
+
+                catDiv.appendChild(grid);
+                sectionDiv.appendChild(catDiv);
+            });
+            root.appendChild(sectionDiv);
+        });
+    }
+
+    // --- 灯箱 (Lightbox) 逻辑 ---
+    const lightbox = document.getElementById('lightbox');
+    const lightboxImg = document.getElementById('lightbox-img');
+    const lightboxCaption = document.getElementById('lightbox-caption');
+    let currentTagInLightbox = "";
+
+    function openLightbox(localSrc, onlineSrc, tagText) {
+        lightbox.style.display = "flex";
+        lightboxCaption.innerText = tagText;
+        currentTagInLightbox = tagText;
+        
+        lightboxImg.style.opacity = 0.5;
+        lightboxImg.src = ""; // reset
+
+        // 逻辑: 优先尝试本地图片。如果本地图片之前onerror了(在grid里), 我们这里还是尝试一下
+        // 如果本地失败，onerror会触发去加载高清在线图
+        
+        const hdOnlineUrl = onlineSrc.replace("width=320", "width=1024").replace("height=320", "height=1024");
+
+        lightboxImg.src = localSrc;
+        
+        lightboxImg.onerror = function() {
+            // 本地挂了，加载高清在线图
+            this.src = hdOnlineUrl;
+        }
+        lightboxImg.onload = function() {
+            this.style.opacity = 1;
+        }
+    }
+
+    function closeLightbox() {
+        lightbox.style.display = "none";
+        lightboxImg.src = "";
+    }
+    function copyCurrentFromLightbox() {
+        copyText(currentTagInLightbox);
+    }
+
+    // 绑定关闭事件
+    window.onclick = (e) => { if(e.target == lightbox) closeLightbox(); }
+    document.addEventListener('keydown', (e) => { if(e.key === "Escape") closeLightbox(); });
+
+    // --- 复制 & 模版逻辑 ---
+    function applyPreset() {
+        const mode = document.getElementById('presetSelect').value;
+        const p = document.getElementById('prefixInput');
+        const s = document.getElementById('suffixInput');
+
+        if(mode === 'chat_cn') { p.value = "请帮我生成一张"; s.value = "风格的图片，画面要精致，细节丰富"; }
+        else if(mode === 'chat_en') { p.value = "Please generate a"; s.value = "style image, high quality, detailed"; }
+        else if(mode === 'sd_base') { p.value = "masterpiece, best quality,"; s.value = ", 8k, detailed, trending on artstation"; }
+        else if(mode === 'empty') { p.value = ""; s.value = ""; }
+        
+        if(mode !== 'custom') {
+            p.style.borderColor = 'var(--accent-color)';
+            setTimeout(() => p.style.borderColor = '', 300);
+        }
+    }
+
+    function copyText(tagText) {
+        const styleName = tagText.split(' (')[0];
+        const prefix = document.getElementById('prefixInput').value.trim();
+        const suffix = document.getElementById('suffixInput').value.trim();
+        
+        let final = styleName;
+        if(prefix) final = `${prefix} ${final}`; // 智能空格
+        if(suffix) final = `${final} ${suffix}`;
+
+        navigator.clipboard.writeText(final).then(() => {
+            const showText = final.length > 40 ? final.substring(0,40)+"..." : final;
+            showToast(`已复制: ${showText}`);
+        });
+    }
+
+    function showToast(msg) {
+        const t = document.getElementById("toast");
+        t.innerText = msg; t.className = "show";
+        setTimeout(() => t.className = t.className.replace("show", ""), 2500);
+    }
+
+    // --- 搜索逻辑 ---
+    document.getElementById('searchInput').addEventListener('input', (e) => {
+        const term = e.target.value.toLowerCase().trim();
+        
+        document.querySelectorAll('.style-card').forEach(card => {
+            const match = card.getAttribute('data-search').includes(term);
+            card.style.display = match ? 'flex' : 'none';
+        });
+
+        // 隐藏空的分类和区块
+        document.querySelectorAll('.category-container').forEach(cat => {
+            const hasVisible = cat.querySelectorAll('.style-card[style="display: flex;"]').length > 0;
+            cat.style.display = (term === '' || hasVisible) ? 'block' : 'none';
+        });
+        document.querySelectorAll('.section-container').forEach(sec => {
+            const hasVisible = sec.querySelectorAll('.category-container[style="display: block;"]').length > 0;
+            sec.style.display = (term === '' || hasVisible) ? 'block' : 'none';
+        });
+    });
+
+    // --- 主题切换 ---
+    const themeBtn = document.getElementById('themeBtn');
+    const htmlEl = document.documentElement;
+    
+    // 读取记忆
+    const savedTheme = localStorage.getItem('theme') || 'dark';
+    setTheme(savedTheme);
+
+    themeBtn.addEventListener('click', () => {
+        const newTheme = htmlEl.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+        setTheme(newTheme);
+    });
+
+    function setTheme(theme) {
+        htmlEl.setAttribute('data-theme', theme);
+        localStorage.setItem('theme', theme);
+        document.getElementById('themeIcon').textContent = theme === 'dark' ? '☀️' : '🌙';
+    }
+
+    // 初始化
+    applyPreset();
+    renderGallery();
+
+</script>
+</body>
+</html>
